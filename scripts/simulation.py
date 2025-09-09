@@ -47,19 +47,20 @@ def run_simulation(num_slots=20, scenario="mixed", epoch_mode=False):
         if epoch_mode and slot % 100 == 0:
             random.seed(random.randint(0, 2**32 - 1))
 
+        # Adjusted ranges to ensure contention is possible
         if scenario == "stateless":
-            workloads = random.randint(1, 3)
-            witnesses = random.randint(100, 500)
+            workloads = random.randint(5, 15)       # Increased range
+            witnesses = random.randint(500, 2000)   # Increased range
         elif scenario == "state-heavy":
-            workloads = random.randint(3, 6)
-            witnesses = random.randint(1000, 3000)
+            workloads = random.randint(15, 30)      # Increased range
+            witnesses = random.randint(10000, 25000) # Increased range
         elif scenario == "mixed":
             if random.random() < 0.8:
-                workloads = random.randint(1, 3)
-                witnesses = random.randint(100, 500)
+                workloads = random.randint(5, 15)
+                witnesses = random.randint(500, 2000)
             else:
-                workloads = random.randint(3, 6)
-                witnesses = random.randint(1000, 3000)
+                workloads = random.randint(15, 30)
+                witnesses = random.randint(10000, 25000)
         else:
             raise ValueError("Unknown scenario.")
 
@@ -77,23 +78,19 @@ def run_simulation(num_slots=20, scenario="mixed", epoch_mode=False):
             if total_data_rate_per_core > core_bandwidth:
                 slot_contention_count += 1
             
-            # Calculate total processed data for this core, limited by bandwidth
             processed_data_per_core = min(core_bandwidth * P, wp_data_per_core + wit_data_per_core)
             total_processed_data_in_slot += processed_data_per_core
 
         contention_history.append(slot_contention_count > 0)
         
-        # Calculate effective TPS based on total processed data across all cores
         total_extrinsics_processed = (total_processed_data_in_slot / work_package_size) * T
         effective_tps = total_extrinsics_processed / P
         tps_effective.append(effective_tps)
         
-        # --- NEW: GRANDPA Finality Model ---
-        # We can only consider transactions finalized after the delay
         if slot >= finality_delay_slots:
             tps_finalized.append(tps_effective[slot - finality_delay_slots])
         else:
-            tps_finalized.append(0) # Not finalized yet
+            tps_finalized.append(0)
 
         tickets = workloads * T
         cost = GAMMA_A * workloads + GAMMA_Z * tickets
